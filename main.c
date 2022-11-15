@@ -34,7 +34,7 @@
 
 void setup(void);
 void setupTMR0(void);
-//void setupTMR1(void);
+void setupTMR1(void);
 void setupADC(void);
 void setupPWM(void);
 void setupPWM2(void);
@@ -42,8 +42,8 @@ void map(void);
 
 void controlmotores(void);
 
-//void PWM1(void); //pwm en RC0
-//void PWM2(void); //pwm en RC3
+void PWM1(void); //pwm en RC3
+void PWM2(void); //pwm en RC4
 
 
 unsigned int ADC_RES; //valor del ADC ccp1
@@ -54,26 +54,35 @@ unsigned int valDCH;
 unsigned int ADC_led;
 unsigned int cont;
 unsigned int pulso;
+unsigned int pulso2;
 
 //******************************************************************************
 // Interrupción
 //******************************************************************************
 void __interrupt() isr (void){
     if (INTCONbits.T0IF){
-        // Revisa si hay interrupción de TMR0
         if (PORTCbits.RC3){
-            // cargo valor
             TMR0 = 255-pulso;
             PORTCbits.RC3 = 0;
-            PORTD++;
         }
         else {
-            // Si el bit está apagado lo enciente y carga el valor al TMR0
             TMR0 = pulso;
             PORTCbits.RC3 = 1;
         }
-        // Apaga la bandera de interrupción del TMR0
         INTCONbits.T0IF = 0;
+    }
+    if (PIR1bits.TMR1IF){
+        if (PORTCbits.RC4){
+            TMR1H = ((63036+(65535-pulso2)) & 0xFF00) >> 8;
+            TMR1L = (63036+(65535-pulso2)) & 0x00FF;
+            PORTCbits.RC4 = 0;
+        }
+        else {
+            TMR1H = (pulso2&0xFF00) >> 8;
+            TMR1L = pulso2&0x00FF;
+            PORTCbits.RC4 = 1;
+        }
+        PIR1bits.TMR1IF = 0; 
     }
 }
 //*******************************************************************
@@ -87,9 +96,10 @@ void main(void) {
     setupPWM();
     setupPWM2();
     setupTMR0();
-//    setupTMR1();
+    setupTMR1();
     cont = 0;
     pulso = 255;
+    pulso2 = 65474;
     
     while(1){
         controlmotores();
@@ -108,6 +118,12 @@ void setup(void){
     TRISC = 0;
     //PIE1bits.ADIE = 1;              // Se habilita la interrupción del ADC
     //PIR1bits.ADIF = 0;              // clear a la bandera
+    
+//    INTCONbits.RBIE = 1;    // Habilita interrupción del puerto B
+//    INTCONbits.RBIF = 0;    // Apaga la bandera de interrupción del puerto B
+//    IOCB = 0b00000111;      // Habilita la interrupción en cambio
+//    WPUB = 0b00000111;      // Habilita el Weak Pull-Up en el puerto B
+//    OPTION_REGbits.nRBPU = 0;   // Deshabilita el bit de RBPU
 }
 //******************************************************************************
 // Función para configurar ADC
@@ -193,28 +209,37 @@ void setupTMR0(void){
 //******************************************************************************
 // setupTMR1
 //******************************************************************************
-//void setupTMR1(void){
-//    T1CONbits.T1CKPS = 0;
-//    T1CONbits.T1OSCEN = 0;
-//    T1CONbits.TMR1CS = 0;    // Internal clock (FOSC/4)
-//    T1CONbits.TMR1ON = 1;    // bit 0 enables timer
-//    // Valor inicial del TMR1
-//    TMR1H = 0xEF;         // preset for timer1 MSB register 
-//    TMR1L = 0x82;         // preset for timer1 LSB register
-//    INTCONbits.PEIE = 1; // Habilitar interrupción de periféricos
-//    PIE1bits.TMR1IE = 1; // Habilitar interrupción del timer 1
-//    PIR1bits.TMR1IF = 0; // Apagar bandera de interrupción del timer 1
-//    
-//}
-//
+void setupTMR1(void){
+    T1CONbits.T1CKPS = 0;
+    T1CONbits.T1OSCEN = 0;
+    T1CONbits.TMR1CS = 0;    // Internal clock (FOSC/4)
+    T1CONbits.TMR1ON = 1;    // bit 0 enables timer
+    // Valor inicial del TMR1
+    TMR1H = 0xF6;         // preset for timer1 MSB register 
+    TMR1L = 0x3C;         // preset for timer1 LSB register
+    INTCONbits.PEIE = 1; // Habilitar interrupción de periféricos
+    PIE1bits.TMR1IE = 1; // Habilitar interrupción del timer 1
+    PIR1bits.TMR1IF = 0; // Apagar bandera de interrupción del timer 1
+    
+}
+
 ////******************************************************************************
-//// PWM TMR0
+// PWM TMR0
 ////******************************************************************************
 void PWM1(void){
     valDC = ((ADRESH << 2) + (ADRESL >> 6));
     pulso = (0.1524*valDC + 99); // valor de 0-1023 a 99-255
-    PORTD = valDC;
 }
+//******************************************************************************
+// PWM TMR1
+//******************************************************************************
+void PWM2(void){
+    valDC = ((ADRESH << 2) + (ADRESL >> 6));
+    pulso2 = (2.43108*valDC + 63036); // mapea el valor a 0xFF0C-FF06
+    PORTD = valDC;
+}//el 65036 es para 2ms
+//65292 FF0C Y FF06 65286
+//65523 para 0.0001
 //******************************************************************************
 // Función para el mapeo de variables para el módulo PWM
 //******************************************************************************
@@ -266,13 +291,13 @@ void controlmotores(void){
     PWM1();
     __delay_ms(1);
 //        
-//        ADCON0bits.CHS = 0b0011; //leo el channel 3
-//        __delay_us(100);
-//        ADCON0bits.GO = 1;
-//        while(ADCON0bits.GO == 1){
-//            ;
-//        }
-//        PWM2();
-//        __delay_ms(1);
+    ADCON0bits.CHS = 0b0011; //leo el channel 3
+    __delay_us(100);
+    ADCON0bits.GO = 1;
+    while(ADCON0bits.GO == 1){
+        ;
+    }
+    PWM2();
+    __delay_ms(1);
 }
 

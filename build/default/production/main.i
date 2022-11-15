@@ -2662,7 +2662,7 @@ void setupINTOSC(uint8_t IRCF);
 
 void setup(void);
 void setupTMR0(void);
-
+void setupTMR1(void);
 void setupADC(void);
 void setupPWM(void);
 void setupPWM2(void);
@@ -2670,8 +2670,8 @@ void map(void);
 
 void controlmotores(void);
 
-
-
+void PWM1(void);
+void PWM2(void);
 
 
 unsigned int ADC_RES;
@@ -2682,26 +2682,35 @@ unsigned int valDCH;
 unsigned int ADC_led;
 unsigned int cont;
 unsigned int pulso;
+unsigned int pulso2;
 
 
 
 
 void __attribute__((picinterrupt(("")))) isr (void){
     if (INTCONbits.T0IF){
-
         if (PORTCbits.RC3){
-
             TMR0 = 255-pulso;
             PORTCbits.RC3 = 0;
-            PORTD++;
         }
         else {
-
             TMR0 = pulso;
             PORTCbits.RC3 = 1;
         }
-
         INTCONbits.T0IF = 0;
+    }
+    if (PIR1bits.TMR1IF){
+        if (PORTCbits.RC4){
+            TMR1H = ((63036+(65535-pulso2)) & 0xFF00) >> 8;
+            TMR1L = (63036+(65535-pulso2)) & 0x00FF;
+            PORTCbits.RC4 = 0;
+        }
+        else {
+            TMR1H = (pulso2&0xFF00) >> 8;
+            TMR1L = pulso2&0x00FF;
+            PORTCbits.RC4 = 1;
+        }
+        PIR1bits.TMR1IF = 0;
     }
 }
 
@@ -2715,9 +2724,10 @@ void main(void) {
     setupPWM();
     setupPWM2();
     setupTMR0();
-
+    setupTMR1();
     cont = 0;
     pulso = 255;
+    pulso2 = 65474;
 
     while(1){
         controlmotores();
@@ -2734,8 +2744,7 @@ void setup(void){
     PORTD = 0;
     TRISD = 0;
     TRISC = 0;
-
-
+# 127 "main.c"
 }
 
 
@@ -2818,12 +2827,40 @@ void setupTMR0(void){
     OPTION_REGbits.PS = 0b011;
     TMR0 = 0;
 }
-# 213 "main.c"
+
+
+
+void setupTMR1(void){
+    T1CONbits.T1CKPS = 0;
+    T1CONbits.T1OSCEN = 0;
+    T1CONbits.TMR1CS = 0;
+    T1CONbits.TMR1ON = 1;
+
+    TMR1H = 0xF6;
+    TMR1L = 0x3C;
+    INTCONbits.PEIE = 1;
+    PIE1bits.TMR1IE = 1;
+    PIR1bits.TMR1IF = 0;
+
+}
+
+
+
+
 void PWM1(void){
     valDC = ((ADRESH << 2) + (ADRESL >> 6));
     pulso = (0.1524*valDC + 99);
+}
+
+
+
+void PWM2(void){
+    valDC = ((ADRESH << 2) + (ADRESL >> 6));
+    pulso2 = (2.43108*valDC + 63036);
     PORTD = valDC;
 }
+
+
 
 
 
@@ -2874,5 +2911,13 @@ void controlmotores(void){
     ADIF = 0;
     PWM1();
     _delay((unsigned long)((1)*(500000/4000.0)));
-# 277 "main.c"
+
+    ADCON0bits.CHS = 0b0011;
+    _delay((unsigned long)((100)*(500000/4000000.0)));
+    ADCON0bits.GO = 1;
+    while(ADCON0bits.GO == 1){
+        ;
+    }
+    PWM2();
+    _delay((unsigned long)((1)*(500000/4000.0)));
 }
