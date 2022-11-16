@@ -2673,8 +2673,8 @@ void delay(unsigned int micro);
 void controlmotores(void);
 
 
-uint8_t readEEPROM(uint8_t address);
-void writeEEPROM(uint8_t address, uint8_t data);
+
+
 
 
 unsigned int modo;
@@ -2686,8 +2686,9 @@ unsigned int valDCH;
 unsigned int pot;
 unsigned int pot1;
 unsigned int micro;
+unsigned int modo;
 
-uint8_t address = 0, cont = 0, cont_sleep = 0, data;
+
 
 
 
@@ -2706,22 +2707,21 @@ void __attribute__((picinterrupt(("")))) isr (void){
     }
 
     if (INTCONbits.RBIF){
-        if (PORTBbits.RB0 == 0){
-            modo++;
+    if (PORTBbits.RB0 == 0){
+        _delay((unsigned long)((15)*(500000/4000.0)));
+        if (PORTBbits.RB0 == 1){
+            modo = modo + 1;
             INTCONbits.RBIF = 0;
         }
     }
-    if (modo == 1){
-        if (INTCONbits.RBIF){
-        if (PORTBbits.RB1 == 0){
-            address++;
+    if (PORTBbits.RB1 == 0)
+    {
+        _delay((unsigned long)((15)*(500000/4000.0)));
+        if (PORTBbits.RB1 == 1){
+            PORTDbits.RD3 = 1;
             INTCONbits.RBIF = 0;
         }
-        else if (PORTBbits.RB2 == 0){
-            writeEEPROM(address, pot);
-            INTCONbits.RBIF = 0;
-        }
-        }
+    }
     }
 }
 
@@ -2739,15 +2739,22 @@ void main(void) {
     modo = 0;
 
     while(1){
-        if (modo == 0){
-            controlmotores();
-            _delay((unsigned long)((100)*(500000/4000000.0)));
+       if (modo == 0){
             PORTD = 0b00000001;
+            controlmotores();
+            IOCB = 0b00000001;
+            WPUB = 0b00000001;
         }
-        else if(modo == 1){
+        else if (modo == 1){
             PORTD = 0b00000010;
+            controlmotores();
+            IOCB = 0b00000111;
+            WPUB = 0b00000111;
         }
-
+        else if (modo > 1){
+            modo = 0;
+        }
+        _delay((unsigned long)((100)*(500000/4000000.0)));
     }
 }
 
@@ -2924,37 +2931,4 @@ void controlmotores(void){
     pot1 = map(ADRESH, 0, 255, 1, 17);
 
     _delay((unsigned long)((1)*(500000/4000.0)));
-}
-
-
-
-
-
-uint8_t readEEPROM(uint8_t address){
-    while (WR||RD);
-
-    EEADR = address;
-    EECON1bits.EEPGD = 0;
-    EECON1bits.RD = 1;
-    return EEDAT;
-}
-
-
-
-void writeEEPROM(uint8_t address, uint8_t data){
-    uint8_t gieStatus;
-    while (WR);
-
-    EEADR = address;
-    EEDAT = data;
-    EECON1bits.EEPGD = 0;
-    EECON1bits.WREN = 1;
-    gieStatus = GIE;
-    INTCONbits.GIE = 0;
-    EECON2 = 0x55;
-    EECON2 = 0xAA;
-    EECON1bits.WR = 1;
-    EECON1bits.WREN = 0;
-
-    INTCONbits.GIE = gieStatus;
 }
