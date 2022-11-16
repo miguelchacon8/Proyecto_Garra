@@ -2660,57 +2660,68 @@ void setupINTOSC(uint8_t IRCF);
 
 
 
+
 void setup(void);
 void setupTMR0(void);
-void setupTMR1(void);
 void setupADC(void);
 void setupPWM(void);
 void setupPWM2(void);
-void map(void);
 
+
+void mapeo(void);
+void delay(unsigned int micro);
 void controlmotores(void);
 
-void PWM1(void);
-void PWM2(void);
+
+uint8_t readEEPROM(uint8_t address);
+void writeEEPROM(uint8_t address, uint8_t data);
 
 
+unsigned int modo;
 unsigned int ADC_RES;
 unsigned int valDC;
 unsigned int valDCL;
 unsigned int valDCH;
 
-unsigned int ADC_led;
-unsigned int cont;
-unsigned int pulso;
-unsigned int pulso2;
+unsigned int pot;
+unsigned int pot1;
+unsigned int micro;
+
+uint8_t address = 0, cont = 0, cont_sleep = 0, data;
 
 
 
 
 void __attribute__((picinterrupt(("")))) isr (void){
-    if (INTCONbits.T0IF){
-        if (PORTCbits.RC3){
-            TMR0 = 255-pulso;
-            PORTCbits.RC3 = 0;
-        }
-        else {
-            TMR0 = pulso;
-            PORTCbits.RC3 = 1;
-        }
+    if (INTCONbits.T0IF == 1){
+        INTCONbits.T0IF = 0;
+        TMR0 = 246;
+        PORTCbits.RC3 = 1;
+        delay(pot);
+        PORTCbits.RC3 = 0;
+        PORTCbits.RC0 = 1;
+        delay(pot1);
+        PORTCbits.RC0 = 0;
         INTCONbits.T0IF = 0;
     }
-    if (PIR1bits.TMR1IF){
-        if (PORTCbits.RC4){
-            TMR1H = ((63036+(65535-pulso2)) & 0xFF00) >> 8;
-            TMR1L = (63036+(65535-pulso2)) & 0x00FF;
-            PORTCbits.RC4 = 0;
+
+    if (INTCONbits.RBIF){
+        if (PORTBbits.RB0 == 0){
+            modo++;
+            INTCONbits.RBIF = 0;
         }
-        else {
-            TMR1H = (pulso2&0xFF00) >> 8;
-            TMR1L = pulso2&0x00FF;
-            PORTCbits.RC4 = 1;
+    }
+    if (modo == 1){
+        if (INTCONbits.RBIF){
+        if (PORTBbits.RB1 == 0){
+            address++;
+            INTCONbits.RBIF = 0;
         }
-        PIR1bits.TMR1IF = 0;
+        else if (PORTBbits.RB2 == 0){
+            writeEEPROM(address, pot);
+            INTCONbits.RBIF = 0;
+        }
+        }
     }
 }
 
@@ -2724,14 +2735,19 @@ void main(void) {
     setupPWM();
     setupPWM2();
     setupTMR0();
-    setupTMR1();
-    cont = 0;
-    pulso = 255;
-    pulso2 = 65474;
+
+    modo = 0;
 
     while(1){
-        controlmotores();
-        _delay((unsigned long)((100)*(500000/4000000.0)));
+        if (modo == 0){
+            controlmotores();
+            _delay((unsigned long)((100)*(500000/4000000.0)));
+            PORTD = 0b00000001;
+        }
+        else if(modo == 1){
+            PORTD = 0b00000010;
+        }
+
     }
 }
 
@@ -2744,7 +2760,14 @@ void setup(void){
     PORTD = 0;
     TRISD = 0;
     TRISC = 0;
-# 127 "main.c"
+    PIE1bits.ADIE = 1;
+    PIR1bits.ADIF = 0;
+
+    INTCONbits.RBIE = 1;
+    INTCONbits.RBIF = 0;
+    IOCB = 0b00000111;
+    WPUB = 0b00000111;
+    OPTION_REGbits.nRBPU = 0;
 }
 
 
@@ -2825,46 +2848,24 @@ void setupTMR0(void){
     OPTION_REGbits.T0CS = 0;
     OPTION_REGbits.PSA = 0;
     OPTION_REGbits.PS = 0b011;
-    TMR0 = 0;
+    TMR0 = 240;
+}
+
+
+void delay(unsigned int micro){
+    while (micro > 0){
+        _delay((unsigned long)((50)*(500000/4000000.0)));
+        micro--;
+    }
+}
+
+unsigned int map(uint8_t value, int inputmin, int inputmax, int outmin, int outmax){
+    return ((value - inputmin)*(outmax-outmin)) / (inputmax-inputmin)+outmin;
 }
 
 
 
-void setupTMR1(void){
-    T1CONbits.T1CKPS = 0;
-    T1CONbits.T1OSCEN = 0;
-    T1CONbits.TMR1CS = 0;
-    T1CONbits.TMR1ON = 1;
-
-    TMR1H = 0xF6;
-    TMR1L = 0x3C;
-    INTCONbits.PEIE = 1;
-    PIE1bits.TMR1IE = 1;
-    PIR1bits.TMR1IF = 0;
-
-}
-
-
-
-
-void PWM1(void){
-    valDC = ((ADRESH << 2) + (ADRESL >> 6));
-    pulso = (0.1524*valDC + 99);
-}
-
-
-
-void PWM2(void){
-    valDC = ((ADRESH << 2) + (ADRESL >> 6));
-    pulso2 = (2.43108*valDC + 63036);
-    PORTD = valDC;
-}
-
-
-
-
-
-void map(void){
+void mapeo(void){
     ADC_RES = ((ADRESH<<2)+(ADRESL>>6));
     valDC = (0.033*ADC_RES+32);
     valDCL = valDC & 0x003;
@@ -2882,7 +2883,7 @@ void controlmotores(void){
 
     while(ADCON0bits.GO == 1);
     ADIF = 0;
-    map();
+    mapeo();
     CCP1CONbits.DC1B = valDCL;
     CCPR1L = valDCH;
     _delay((unsigned long)((1)*(500000/4000.0)));
@@ -2895,7 +2896,7 @@ void controlmotores(void){
 
     while(ADCON0bits.GO == 1);
     ADIF = 0;
-    map();
+    mapeo();
     CCP2CONbits.DC2B0 = valDCL & 0x01;
     CCP2CONbits.DC2B1 = (valDCL & 0x02) >> 1;
     CCPR2L = valDCH;
@@ -2909,15 +2910,51 @@ void controlmotores(void){
 
     while(ADCON0bits.GO == 1);
     ADIF = 0;
-    PWM1();
+    pot = map(ADRESH, 0, 255, 1, 17);
+
     _delay((unsigned long)((1)*(500000/4000.0)));
+
 
     ADCON0bits.CHS = 0b0011;
     _delay((unsigned long)((100)*(500000/4000000.0)));
     ADCON0bits.GO = 1;
-    while(ADCON0bits.GO == 1){
-        ;
-    }
-    PWM2();
+
+    while(ADCON0bits.GO == 1);
+    ADIF = 0;
+    pot1 = map(ADRESH, 0, 255, 1, 17);
+
     _delay((unsigned long)((1)*(500000/4000.0)));
+}
+
+
+
+
+
+uint8_t readEEPROM(uint8_t address){
+    while (WR||RD);
+
+    EEADR = address;
+    EECON1bits.EEPGD = 0;
+    EECON1bits.RD = 1;
+    return EEDAT;
+}
+
+
+
+void writeEEPROM(uint8_t address, uint8_t data){
+    uint8_t gieStatus;
+    while (WR);
+
+    EEADR = address;
+    EEDAT = data;
+    EECON1bits.EEPGD = 0;
+    EECON1bits.WREN = 1;
+    gieStatus = GIE;
+    INTCONbits.GIE = 0;
+    EECON2 = 0x55;
+    EECON2 = 0xAA;
+    EECON1bits.WR = 1;
+    EECON1bits.WREN = 0;
+
+    INTCONbits.GIE = gieStatus;
 }

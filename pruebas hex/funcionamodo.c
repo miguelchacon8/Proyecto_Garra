@@ -29,71 +29,74 @@
 
 #include <xc.h>
 #include "oscilador.h"
-#include <xc.h>
-#define _XTAL_FREQ 500000 //kHZ
+#define _XTAL_FREQ 500000 //MHZ
 
-// SETUPS
+
 void setup(void);
 void setupTMR0(void);
+void setupTMR1(void);
 void setupADC(void);
 void setupPWM(void);
 void setupPWM2(void);
+void map(void);
 
-// FUNCIONES PARA PWM
-void mapeo(void);
-void delay(unsigned int micro);
 void controlmotores(void);
 
-//FUNCIONES PARA EEPROM
-uint8_t readEEPROM(uint8_t address);
-void writeEEPROM(uint8_t address, uint8_t data);
+void PWM1(void); //pwm en RC3
+void PWM2(void); //pwm en RC4
 
+//void EEPROM_Write(uint8_t, uint8_t);
+// uint8_t EEPROM_Read(uint8_t);
 
-unsigned int modo; //adc high
 unsigned int ADC_RES; //valor del ADC ccp1
-unsigned int valDC; //valor que se carga para el servo
-unsigned int valDCL; //adc low
-unsigned int valDCH; //adc high
+unsigned int valDC;
+unsigned int valDCL;
+unsigned int valDCH;
 
-unsigned int pot; //pwm1
-unsigned int pot1; //pwm2
-unsigned int micro; //valor para delay
-
-uint8_t address = 0, cont = 0, cont_sleep = 0, data; //valores para eeprom
+unsigned int ADC_led;
+unsigned int cont;
+unsigned int pulso;
+unsigned int pulso2;
+unsigned int modo;
 
 //******************************************************************************
 // Interrupción
 //******************************************************************************
 void __interrupt() isr (void){
-    if (INTCONbits.T0IF == 1){  //se revisa si se interrumpe al tmr0
-        INTCONbits.T0IF = 0;    // reiniciar bandera de tmr0
-        TMR0 = 246;             //valor del tmr0
-        PORTCbits.RC3 = 1;      //encendido del puerto
-        delay(pot);             // tiempo en alto
-        PORTCbits.RC3 = 0;      //apagado
-        PORTCbits.RC0 = 1;      //encendido del puerto
-        delay(pot1);            // tiempo en alto
-        PORTCbits.RC0 = 0;      //apagado 
-        INTCONbits.T0IF = 0;    // reiniciar bandera de tmr0
+    if (INTCONbits.T0IF){
+        if (PORTCbits.RC3){
+            TMR0 = 255-pulso;
+            PORTCbits.RC3 = 0;
+        }
+        else {
+            TMR0 = pulso;
+            PORTCbits.RC3 = 1;
+        }
+        INTCONbits.T0IF = 0;
+    }
+    if (PIR1bits.TMR1IF){
+        if (PORTCbits.RC4){
+            TMR1H = ((63036+(65535-pulso2)) & 0xFF00) >> 8;
+            TMR1L = (63036+(65535-pulso2)) & 0x00FF;
+            PORTCbits.RC4 = 0;
+        }
+        else {
+            TMR1H = (pulso2&0xFF00) >> 8;
+            TMR1L = pulso2&0x00FF;
+            PORTCbits.RC4 = 1;
+        }
+        PIR1bits.TMR1IF = 0; 
     }
     
-    if (INTCONbits.RBIF){
-        if (PORTBbits.RB0 == 0){
-            modo++; 
+    if (RBIF == 1){
+    if (PORTBbits.RB0 == 0)
+    {
+        __delay_ms(15);
+        if (PORTBbits.RB0 == 1){
+            modo = modo + 1;
             INTCONbits.RBIF = 0;
         }
     }
-    if (modo == 1){
-        if (INTCONbits.RBIF){
-        if (PORTBbits.RB1 == 0){
-            address++;   
-            INTCONbits.RBIF = 0;
-        }
-        else if (PORTBbits.RB2 == 0){
-            writeEEPROM(address, pot);
-            INTCONbits.RBIF = 0;
-        }
-        }
     }
 }
 //*******************************************************************
@@ -107,19 +110,25 @@ void main(void) {
     setupPWM();
     setupPWM2();
     setupTMR0();
-    
+    setupTMR1();
+    pulso = 255;
+    pulso2 = 65474;
     modo = 0;
-
+    
     while(1){
         if (modo == 0){
+            PORTDbits.RD0 = 1;
+            PORTDbits.RD0 = 1;
             controlmotores();
-            __delay_us(100);
-            PORTD = 0b00000001;
         }
-        else if(modo == 1){
-            PORTD = 0b00000010;
+        else if (modo == 1){
+            PORTDbits.RD0 = 0;
+            PORTDbits.RD1 = 1;
         }
-        
+        else if (modo == 2){
+            modo = 0;
+        }
+        __delay_us(100);
     }
 }
 //******************************************************************************
@@ -132,14 +141,14 @@ void setup(void){
     PORTD = 0; // portd en 0
     TRISD = 0;
     TRISC = 0;
-    PIE1bits.ADIE = 1;              // Se habilita la interrupción del ADC
-    PIR1bits.ADIF = 0;              // clear a la bandera
+    //PIE1bits.ADIE = 1;              // Se habilita la interrupción del ADC
+    //PIR1bits.ADIF = 0;              // clear a la bandera
     
-    INTCONbits.RBIE = 1;    
-    INTCONbits.RBIF = 0;    
-    IOCB = 0b00000111;      
-    WPUB = 0b00000111;     
-    OPTION_REGbits.nRBPU = 0;   
+    INTCONbits.RBIE = 1;    // Habilita interrupción del puerto B
+    INTCONbits.RBIF = 0;    // Apaga la bandera de interrupción del puerto B
+    IOCB = 0b00000111;      // Habilita la interrupción en cambio
+    WPUB = 0b00000111;      // Habilita el Weak Pull-Up en el puerto B
+    OPTION_REGbits.nRBPU = 0;   // Deshabilita el bit de RBPU
 }
 //******************************************************************************
 // Función para configurar ADC
@@ -220,24 +229,43 @@ void setupTMR0(void){
     OPTION_REGbits.T0CS = 0;    // Fosc/4
     OPTION_REGbits.PSA = 0;     // Prescaler para TMR0
     OPTION_REGbits.PS = 0b011;  // Prescaler 1:16
-    TMR0 = 240;                   // Valor inicial del TMR0
-}
-////******************************************************************************
-//FUNCION DE DELAY VARIABLES
-void delay(unsigned int micro){
-    while (micro > 0){
-        __delay_us(50); 
-        micro--; //decrementar variable
-    }
+    TMR0 = 0;                   // Valor inicial del TMR0
 }
 //******************************************************************************
-unsigned int map(uint8_t value, int inputmin, int inputmax, int outmin, int outmax){ //función para mapear valores
-    return ((value - inputmin)*(outmax-outmin)) / (inputmax-inputmin)+outmin;
+// setupTMR1
+//******************************************************************************
+void setupTMR1(void){
+    T1CONbits.T1CKPS = 0;
+    T1CONbits.T1OSCEN = 0;
+    T1CONbits.TMR1CS = 0;    // Internal clock (FOSC/4)
+    T1CONbits.TMR1ON = 1;    // bit 0 enables timer
+    // Valor inicial del TMR1
+    TMR1H = 0xF6;         // preset for timer1 MSB register 
+    TMR1L = 0x3C;         // preset for timer1 LSB register
+    INTCONbits.PEIE = 1; // Habilitar interrupción de periféricos
+    PIE1bits.TMR1IE = 1; // Habilitar interrupción del timer 1
+    PIR1bits.TMR1IF = 0; // Apagar bandera de interrupción del timer 1
+    
+}
+
+////******************************************************************************
+// PWM TMR0
+////******************************************************************************
+void PWM1(void){
+    valDC = ((ADRESH << 2) + (ADRESL >> 6));
+    pulso = (0.1524*valDC + 99); // valor de 0-1023 a 99-255
+}
+//******************************************************************************
+// PWM TMR1
+//******************************************************************************
+void PWM2(void){
+    valDC = ((ADRESH << 2) + (ADRESL >> 6));
+    pulso2 = (2.43108*valDC + 63036); // 
 }
 //******************************************************************************
 // Función para el mapeo de variables para el módulo PWM
 //******************************************************************************
-void mapeo(void){
+void map(void){
     ADC_RES = ((ADRESH<<2)+(ADRESL>>6)); // le mapeo los valores
     valDC = (0.033*ADC_RES+32);
     valDCL = valDC & 0x003;
@@ -255,7 +283,7 @@ void controlmotores(void){
     
     while(ADCON0bits.GO == 1);
     ADIF = 0; 
-    mapeo();
+    map();
     CCP1CONbits.DC1B = valDCL;        // CCPxCON<5:4>
     CCPR1L = valDCH;  //asigno el valor para el PWM
     __delay_ms(1);   
@@ -268,65 +296,53 @@ void controlmotores(void){
     
     while(ADCON0bits.GO == 1);
     ADIF = 0;
-    mapeo();
+    map();
     CCP2CONbits.DC2B0 = valDCL & 0x01;
     CCP2CONbits.DC2B1 = (valDCL & 0x02) >> 1;// CCPxCON<5:4>
     CCPR2L = valDCH;  //asigno el valor para el PWM
     __delay_ms(1);
     //***********************************************
     
-    //leo el channel 2 EL PWM EN RC3
+    //leo el channel 2
     ADCON0bits.CHS = 0b0010; 
     __delay_us(100);
     ADCON0bits.GO = 1;
     
     while(ADCON0bits.GO == 1);
     ADIF = 0;
-    pot = map(ADRESH, 0, 255, 1, 17);
-    //PWM1();
+    PWM1();
     __delay_ms(1);
-    
-    //leo el channel 3 EL PWM EN RC4
-    ADCON0bits.CHS = 0b0011; 
+//        
+    ADCON0bits.CHS = 0b0011; //leo el channel 3
     __delay_us(100);
     ADCON0bits.GO = 1;
-    
-    while(ADCON0bits.GO == 1);
-    ADIF = 0;
-    pot1 = map(ADRESH, 0, 255, 1, 17);
-    //PWM2();
+    while(ADCON0bits.GO == 1){
+        ;
+    }
+    PWM2();
     __delay_ms(1);
 }
 
-//******************************************************************************
-// Funciones de EEPROM
-//******************************************************************************
-//LECTURA
-uint8_t readEEPROM(uint8_t address){
-    while (WR||RD);
-    
-    EEADR = address;
-    EECON1bits.EEPGD = 0;
-    EECON1bits.RD = 1;   
-    return EEDAT;
-}
-
-//ESCRITURA
-
-void writeEEPROM(uint8_t address, uint8_t data){
-    uint8_t gieStatus;
-    while (WR);
-    
-    EEADR = address;                //dirección de memoria para escribir
-    EEDAT = data;                   //dato a escribir
-    EECON1bits.EEPGD = 0;           // acceso a memoria
-    EECON1bits.WREN = 1;            // se habilita la escritura
-    gieStatus = GIE;
-    INTCONbits.GIE = 0;             // se deshabilitan las interrupciones
-    EECON2 = 0x55;                  //secuencia de W
-    EECON2 = 0xAA;
-    EECON1bits.WR = 1;              //init W
-    EECON1bits.WREN = 0;          //apagado de W de eeprom
-
-    INTCONbits.GIE = gieStatus;     //se regresan las interrupciones
-}
+//void EEPROM_Write(uint8_t Address, uint8_t Data){
+//  while(EECON1bits.WR);  // Waits Until Last Attempt To Write Is Finished
+//  EEADR = Address;       // Writes The Addres To Which We'll Wite Our Data
+//  EEDATA = Data;         // Write The Data To Be Saved
+//  EECON1bits.EEPGD = 0;  // Cleared To Point To EEPROM Not The Program Memory
+//  EECON1bits.WREN = 1;   // Enable The Operation !
+//  INTCONbits.GIE = 0;    // Disable All Interrupts Untill Writting Data Is Done
+//  EECON2 = 0x55;         // Part Of Writing Mechanism..
+//  EECON2 = 0xAA;         // Part Of Writing Mechanism..
+//  EECON1bits.WR = 1;     // Part Of Writing Mechanism..
+//  INTCONbits.GIE = 1;    // Re-Enable Interrupts
+//  EECON1bits.WREN = 0;   // Disable The Operation
+//  EECON1bits.WR = 0;     // Ready For Next Writting Operation
+//}
+//
+//uint8_t EEPROM_Read(uint8_t Address){
+//  uint8_t Data;
+//  EEADR = Address;       // Write The Address From Which We Wonna Get Data
+//  EECON1bits.EEPGD = 0;  // Cleared To Point To EEPROM Not The Program Memory
+//  EECON1bits.RD = 1;     // Start The Read Operation
+//  Data = EEDATA;         // Read The Data
+//  return Data;
+//}
