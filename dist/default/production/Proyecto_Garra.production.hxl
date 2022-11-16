@@ -9,13 +9,13 @@
 ### Memory Usage ###
  Intel Hex-file ranges:
   0h - 5h		(dist/default/production\Proyecto_Garra.production.hex)
-  8h - FF7h		(dist/default/production\Proyecto_Garra.production.hex)
-  1A0Ah - 1FFFh		(dist/default/production\Proyecto_Garra.production.hex)
+  8h - FF3h		(dist/default/production\Proyecto_Garra.production.hex)
+  1A02h - 1FFFh		(dist/default/production\Proyecto_Garra.production.hex)
   4000h - 4007h		(dist/default/production\Proyecto_Garra.production.hex)
   400Eh - 4011h		(dist/default/production\Proyecto_Garra.production.hex)
  Unused ranges:
   6h - 7h
-  FF8h - 1A09h
+  FF4h - 1A01h
   2000h - 3FFFh
   4008h - 400Dh
 
@@ -281,9 +281,9 @@
 00000FC0 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
 00000FD0 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
 00000FE0 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
-00000FF0 | H1 H1 H1 H1 H1 H1 H1 H1 -- -- -- -- -- -- -- --
+00000FF0 | H1 H1 H1 H1 -- -- -- -- -- -- -- -- -- -- -- --
 ----------------------------------------------------------
-00001A00 | -- -- -- -- -- -- -- -- -- -- H1 H1 H1 H1 H1 H1
+00001A00 | -- -- H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
 00001A10 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
 00001A20 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1
 00001A30 | H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1 H1

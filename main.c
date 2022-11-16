@@ -45,8 +45,8 @@ void delay(unsigned int micro);
 void controlmotores(void);
 
 //FUNCIONES PARA EEPROM
-//uint8_t readEEPROM(uint8_t address);
-//void writeEEPROM(uint8_t address, uint8_t data);
+uint8_t readEEPROM(uint8_t address);
+void writeEEPROM(uint8_t address, uint8_t data);
 
 
 unsigned int modo; //adc high
@@ -60,7 +60,7 @@ unsigned int pot1; //pwm2
 unsigned int micro; //valor para delay
 unsigned int modo;
 
-//uint8_t address = 0, cont = 0, cont_sleep = 0, data; //valores para eeprom
+uint8_t address = 0, cont = 0, cont_sleep = 0, data; //valores para eeprom
 
 //******************************************************************************
 // Interrupción
@@ -68,7 +68,7 @@ unsigned int modo;
 void __interrupt() isr (void){
     if (INTCONbits.T0IF == 1){  //se revisa si se interrumpe al tmr0
         INTCONbits.T0IF = 0;    // reiniciar bandera de tmr0
-        TMR0 = 246;             //valor del tmr0
+        TMR0 = 99;             //valor del tmr0
         PORTCbits.RC3 = 1;      //encendido del puerto
         delay(pot);             // tiempo en alto
         PORTCbits.RC3 = 0;      //apagado
@@ -85,15 +85,17 @@ void __interrupt() isr (void){
             modo = modo + 1;
             INTCONbits.RBIF = 0;
         }
-    }
-    if (PORTBbits.RB1 == 0)
-    {
-        __delay_ms(15);
-        if (PORTBbits.RB1 == 1){
-            PORTDbits.RD3 = 1;
-            INTCONbits.RBIF = 0;
+    }}
+    if (modo == 1){
+        if (INTCONbits.RBIF){
+        if (PORTBbits.RB1 == 0){
+            __delay_ms(15);
+            if (PORTBbits.RB1 == 1){
+                PORTDbits.RD3 = 1;
+                INTCONbits.RBIF = 0;
+            }
         }
-    }
+        }
     }
 }
 //*******************************************************************
@@ -113,15 +115,11 @@ void main(void) {
     while(1){
        if (modo == 0){
             PORTD = 0b00000001;
-            controlmotores();
-            IOCB = 0b00000001;      
-            WPUB = 0b00000001; 
+            controlmotores(); 
         }
         else if (modo == 1){
             PORTD = 0b00000010;
             controlmotores();
-            IOCB = 0b00000111;      
-            WPUB = 0b00000111; 
         }
         else if (modo > 1){
             modo = 0;
@@ -227,17 +225,18 @@ void setupTMR0(void){
     OPTION_REGbits.T0CS = 0;    // Fosc/4
     OPTION_REGbits.PSA = 0;     // Prescaler para TMR0
     OPTION_REGbits.PS = 0b011;  // Prescaler 1:16
-    TMR0 = 240;                   // Valor inicial del TMR0
+    TMR0 = 99;                   // Valor inicial del TMR0
 }
 ////******************************************************************************
-//FUNCION DE DELAY VARIABLES
+//DELAY CONTROL PWM
 void delay(unsigned int micro){
     while (micro > 0){
-        __delay_us(50); 
+        __delay_us(40); 
         micro--; //decrementar variable
     }
 }
 //******************************************************************************
+//FUNCION MAP
 unsigned int map(uint8_t value, int inputmin, int inputmax, int outmin, int outmax){ //función para mapear valores
     return ((value - inputmin)*(outmax-outmin)) / (inputmax-inputmin)+outmin;
 }
@@ -290,7 +289,6 @@ void controlmotores(void){
     while(ADCON0bits.GO == 1);
     ADIF = 0;
     pot = map(ADRESH, 0, 255, 1, 17);
-    //PWM1();
     __delay_ms(1);
     
     //leo el channel 3 EL PWM EN RC4
@@ -301,6 +299,38 @@ void controlmotores(void){
     while(ADCON0bits.GO == 1);
     ADIF = 0;
     pot1 = map(ADRESH, 0, 255, 1, 17);
-    //PWM2();
     __delay_ms(1);
+}
+
+//******************************************************************************
+// Funciones de EEPROM
+//******************************************************************************
+//LECTURA
+uint8_t readEEPROM(uint8_t address){
+    while (WR||RD);
+    
+    EEADR = address;
+    EECON1bits.EEPGD = 0;
+    EECON1bits.RD = 1;   
+    return EEDAT;
+}
+
+//ESCRITURA
+
+void writeEEPROM(uint8_t address, uint8_t data){
+    uint8_t gieStatus;
+    while (WR);
+    
+    EEADR = address;                //dirección de memoria para escribir
+    EEDAT = data;                   //dato a escribir
+    EECON1bits.EEPGD = 0;           // acceso a memoria
+    EECON1bits.WREN = 1;            // se habilita la escritura
+    gieStatus = GIE;
+    INTCONbits.GIE = 0;             // se deshabilitan las interrupciones
+    EECON2 = 0x55;                  //secuencia de W
+    EECON2 = 0xAA;
+    EECON1bits.WR = 1;              //init W
+    EECON1bits.WREN = 0;          //apagado de W de eeprom
+
+    INTCONbits.GIE = gieStatus;     //se regresan las interrupciones
 }

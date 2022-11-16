@@ -2673,8 +2673,8 @@ void delay(unsigned int micro);
 void controlmotores(void);
 
 
-
-
+uint8_t readEEPROM(uint8_t address);
+void writeEEPROM(uint8_t address, uint8_t data);
 
 
 unsigned int modo;
@@ -2688,7 +2688,7 @@ unsigned int pot1;
 unsigned int micro;
 unsigned int modo;
 
-
+uint8_t address = 0, cont = 0, cont_sleep = 0, data;
 
 
 
@@ -2696,7 +2696,7 @@ unsigned int modo;
 void __attribute__((picinterrupt(("")))) isr (void){
     if (INTCONbits.T0IF == 1){
         INTCONbits.T0IF = 0;
-        TMR0 = 246;
+        TMR0 = 99;
         PORTCbits.RC3 = 1;
         delay(pot);
         PORTCbits.RC3 = 0;
@@ -2713,15 +2713,17 @@ void __attribute__((picinterrupt(("")))) isr (void){
             modo = modo + 1;
             INTCONbits.RBIF = 0;
         }
-    }
-    if (PORTBbits.RB1 == 0)
-    {
-        _delay((unsigned long)((15)*(500000/4000.0)));
-        if (PORTBbits.RB1 == 1){
-            PORTDbits.RD3 = 1;
-            INTCONbits.RBIF = 0;
+    }}
+    if (modo == 1){
+        if (INTCONbits.RBIF){
+        if (PORTBbits.RB1 == 0){
+            _delay((unsigned long)((15)*(500000/4000.0)));
+            if (PORTBbits.RB1 == 1){
+                PORTDbits.RD3 = 1;
+                INTCONbits.RBIF = 0;
+            }
         }
-    }
+        }
     }
 }
 
@@ -2742,14 +2744,10 @@ void main(void) {
        if (modo == 0){
             PORTD = 0b00000001;
             controlmotores();
-            IOCB = 0b00000001;
-            WPUB = 0b00000001;
         }
         else if (modo == 1){
             PORTD = 0b00000010;
             controlmotores();
-            IOCB = 0b00000111;
-            WPUB = 0b00000111;
         }
         else if (modo > 1){
             modo = 0;
@@ -2855,16 +2853,17 @@ void setupTMR0(void){
     OPTION_REGbits.T0CS = 0;
     OPTION_REGbits.PSA = 0;
     OPTION_REGbits.PS = 0b011;
-    TMR0 = 240;
+    TMR0 = 99;
 }
 
 
 void delay(unsigned int micro){
     while (micro > 0){
-        _delay((unsigned long)((50)*(500000/4000000.0)));
+        _delay((unsigned long)((40)*(500000/4000000.0)));
         micro--;
     }
 }
+
 
 unsigned int map(uint8_t value, int inputmin, int inputmax, int outmin, int outmax){
     return ((value - inputmin)*(outmax-outmin)) / (inputmax-inputmin)+outmin;
@@ -2918,7 +2917,6 @@ void controlmotores(void){
     while(ADCON0bits.GO == 1);
     ADIF = 0;
     pot = map(ADRESH, 0, 255, 1, 17);
-
     _delay((unsigned long)((1)*(500000/4000.0)));
 
 
@@ -2929,6 +2927,38 @@ void controlmotores(void){
     while(ADCON0bits.GO == 1);
     ADIF = 0;
     pot1 = map(ADRESH, 0, 255, 1, 17);
-
     _delay((unsigned long)((1)*(500000/4000.0)));
+}
+
+
+
+
+
+uint8_t readEEPROM(uint8_t address){
+    while (WR||RD);
+
+    EEADR = address;
+    EECON1bits.EEPGD = 0;
+    EECON1bits.RD = 1;
+    return EEDAT;
+}
+
+
+
+void writeEEPROM(uint8_t address, uint8_t data){
+    uint8_t gieStatus;
+    while (WR);
+
+    EEADR = address;
+    EEDAT = data;
+    EECON1bits.EEPGD = 0;
+    EECON1bits.WREN = 1;
+    gieStatus = GIE;
+    INTCONbits.GIE = 0;
+    EECON2 = 0x55;
+    EECON2 = 0xAA;
+    EECON1bits.WR = 1;
+    EECON1bits.WREN = 0;
+
+    INTCONbits.GIE = gieStatus;
 }
