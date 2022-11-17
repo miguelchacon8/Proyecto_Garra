@@ -2660,7 +2660,6 @@ void setupINTOSC(uint8_t IRCF);
 
 
 
-
 void setup(void);
 void setupTMR0(void);
 void setupADC(void);
@@ -2675,6 +2674,7 @@ void controlmotores(void);
 
 uint8_t readEEPROM(uint8_t address);
 void writeEEPROM(uint8_t address, uint8_t data);
+void verifpos(void);
 
 
 unsigned int modo;
@@ -2687,6 +2687,9 @@ unsigned int pot;
 unsigned int pot1;
 unsigned int micro;
 unsigned int modo;
+unsigned int position;
+int writeread;
+int loc;
 
 uint8_t address = 0, cont = 0, cont_sleep = 0, data;
 
@@ -2707,23 +2710,26 @@ void __attribute__((picinterrupt(("")))) isr (void){
     }
 
     if (INTCONbits.RBIF){
-    if (PORTBbits.RB0 == 0){
-        _delay((unsigned long)((15)*(500000/4000.0)));
-        if (PORTBbits.RB0 == 1){
-            modo = modo + 1;
-            INTCONbits.RBIF = 0;
+        if (PORTBbits.RB0 == 0){
+            while(PORTBbits.RB0 == 0);
+            if (modo < 1){
+                position = 0;
+                modo = modo + 1;}
+            else {
+                modo = 0;}
         }
-    }}
-    if (modo == 1){
-        if (INTCONbits.RBIF){
-        if (PORTBbits.RB1 == 0){
-            _delay((unsigned long)((15)*(500000/4000.0)));
-            if (PORTBbits.RB1 == 1){
-                PORTDbits.RD3 = 1;
-                INTCONbits.RBIF = 0;
-            }
+        if(PORTBbits.RB1 == 0){
+            while(PORTBbits.RB1 == 0);
+            if (position < 3){
+                position = position +1;}
+            else {
+                position = 0;}
         }
-        }
+        if(PORTBbits.RB2 == 0){
+            while(PORTBbits.RB2 == 0);
+                PORTCbits.RC5 = 1;
+                writeread = 1;}
+        INTCONbits.RBIF = 0;
     }
 }
 
@@ -2739,19 +2745,52 @@ void main(void) {
     setupTMR0();
 
     modo = 0;
+    position = 0;
 
     while(1){
-       if (modo == 0){
-            PORTD = 0b00000001;
+
+       if(modo == 0){
             controlmotores();
+            verifpos();
+            if (writeread == 1){
+                writeread = 0;
+                PORTCbits.RC5 = 0;
+
+                if (position == 0){
+                    loc = 0;}
+                else if (position == 1){
+                    loc = 4;}
+                else if (position == 2){
+                    loc = 8;}
+                else if (position == 3){
+                    loc = 12;}
+                writeEEPROM(loc, CCPR1L);
+                writeEEPROM((loc + 1), CCPR2L);
+                writeEEPROM((loc + 2), pot);
+                writeEEPROM((loc + 3), pot1);
+            }
+            _delay((unsigned long)((100)*(500000/4000000.0)));
         }
-        else if (modo == 1){
-            PORTD = 0b00000010;
-            controlmotores();
-        }
-        else if (modo > 1){
-            modo = 0;
-        }
+       else if (modo == 1){
+           verifpos();
+           if (writeread == 1){
+                writeread = 0;
+                PORTCbits.RC5 = 0;
+
+                if (position == 0){
+                    loc = 0;}
+                else if (position == 1){
+                    loc = 4;}
+                else if (position == 2){
+                    loc = 8;}
+                else if (position == 3){
+                    loc = 12;}
+                CCPR1L = readEEPROM(loc);
+                CCPR2L = readEEPROM((loc+1));
+                pot = readEEPROM((loc+2));
+                pot1 = readEEPROM((loc+3));
+            }
+            }
         _delay((unsigned long)((100)*(500000/4000000.0)));
     }
 }
@@ -2770,8 +2809,8 @@ void setup(void){
 
     INTCONbits.RBIE = 1;
     INTCONbits.RBIF = 0;
-    IOCB = 0b00000111;
-    WPUB = 0b00000111;
+    IOCB = 0b0000111;
+    WPUB = 0b0000111;
     OPTION_REGbits.nRBPU = 0;
 }
 
@@ -2781,8 +2820,8 @@ void setupADC(void){
 
 
     ANSELH = 0;
-    TRISAbits.TRISA0 = 1;
-    ANSELbits.ANS0 = 1;
+    TRISAbits.TRISA5 = 1;
+    ANSELbits.ANS5 = 1;
     TRISAbits.TRISA1 = 1;
     ANSELbits.ANS1 = 1;
     TRISAbits.TRISA2 = 1;
@@ -2883,7 +2922,7 @@ void mapeo(void){
 void controlmotores(void){
 
 
-    ADCON0bits.CHS = 0b0000;
+    ADCON0bits.CHS = 0b0001;
     _delay((unsigned long)((100)*(500000/4000000.0)));
     ADCON0bits.GO = 1;
 
@@ -2896,7 +2935,7 @@ void controlmotores(void){
 
 
 
-    ADCON0bits.CHS = 0b0001;
+    ADCON0bits.CHS = 0b0010;
     _delay((unsigned long)((100)*(500000/4000000.0)));
     ADCON0bits.GO = 1;
 
@@ -2910,7 +2949,7 @@ void controlmotores(void){
 
 
 
-    ADCON0bits.CHS = 0b0010;
+    ADCON0bits.CHS = 0b0011;
     _delay((unsigned long)((100)*(500000/4000000.0)));
     ADCON0bits.GO = 1;
 
@@ -2920,7 +2959,7 @@ void controlmotores(void){
     _delay((unsigned long)((1)*(500000/4000.0)));
 
 
-    ADCON0bits.CHS = 0b0011;
+    ADCON0bits.CHS = 0b0100;
     _delay((unsigned long)((100)*(500000/4000000.0)));
     ADCON0bits.GO = 1;
 
@@ -2961,4 +3000,37 @@ void writeEEPROM(uint8_t address, uint8_t data){
     EECON1bits.WREN = 0;
 
     INTCONbits.GIE = gieStatus;
+}
+
+
+
+
+void verifpos(void){
+
+    if (position == 0){
+        PORTDbits.RD2 = 0;
+        PORTDbits.RD3 = 0;}
+    else if (position == 1){
+        PORTDbits.RD2 = 1;
+        PORTDbits.RD3 = 0;}
+    else if (position == 2){
+        PORTDbits.RD2 = 0;
+        PORTDbits.RD3 = 1;}
+    else if (position == 3){
+        PORTDbits.RD2 = 1;
+        PORTDbits.RD3 = 1;}
+
+    if (modo == 0){
+        PORTDbits.RD0 = 1;
+        PORTDbits.RD1 = 0;
+        PORTCbits.RC4 = 0;}
+    else if (modo == 1){
+        PORTDbits.RD0 = 0;
+        PORTDbits.RD1 = 1;
+        PORTCbits.RC4 = 0;}
+    else if (modo == 2){
+        PORTDbits.RD0 = 0;
+        PORTDbits.RD1 = 0;
+        PORTCbits.RC4 = 1;}
+
 }
