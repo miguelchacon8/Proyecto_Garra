@@ -1,9 +1,10 @@
 /*
  * File:   main.c
  * Author: Miguel Chacón
- *
+ * Programa: PROYECTO 2 GARRA
  * Created on October 17, 2022
- * 
+ * Universidad del Valle de Guatemala
+ * Programación de Microcontroladores
  *  */
 
 // 'C' source line config statements
@@ -29,25 +30,31 @@
 
 #include <xc.h>
 #include "oscilador.h"
+#include <stdlib.h>
+#include <string.h>
 #define _XTAL_FREQ 500000 //kHZ
 
+
 // SETUPS
-void setup(void);
-void setupTMR0(void);
-void setupADC(void);
-void setupPWM(void);
-void setupPWM2(void);
+void setup(void);   //setup general
+void initUART(void);    //se inicia la comunicación serial
+void cadena(char *cursor);  //para enviar caracteres
+void setupTMR0(void);               //setup del tmr0
+void setupADC(void);                //setup del ADC
+void setupPWM(void);                //setup del primer pwm
+void setupPWM2(void);               //setup del segundo pwm
 
 // FUNCIONES PARA PWM
-void mapeo(void);
-void delay(unsigned int micro);
-void controlmotores(void);
+void mapeo(void);           //mapeo de valores
+void delay(unsigned int micro); //delay para servos
+void controlmotores(void);      //control manual de motores y por adafruit
 
 //FUNCIONES PARA EEPROM
-uint8_t readEEPROM(uint8_t address);
-void writeEEPROM(uint8_t address, uint8_t data);
+uint8_t readEEPROM(uint8_t address);        //lectura de eeprom
+void writeEEPROM(uint8_t address, uint8_t data); //escritura de eeprom
 void verifpos(void);
-
+void adamodo(void);
+void controladafruit (void);
 
 unsigned int modo; //adc high
 unsigned int ADC_RES; //valor del ADC ccp1
@@ -57,14 +64,16 @@ unsigned int valDCH; //adc high
 
 unsigned int pot; //pwm1
 unsigned int pot1; //pwm2
+uint8_t valorpot1; //pwm2
 unsigned int micro; //valor para delay
-unsigned int modo;  //variable para cambiar de modo
+unsigned int modo;  //variablepara cambiar de modo
 unsigned int position; //variable para ciclar entre posición de address
 int writeread;
 int loc;
 
 uint8_t address = 0, cont = 0, cont_sleep = 0, data; //valores para eeprom
-
+char buffer[sizeof(unsigned int)*8 +1];
+unsigned int i = 0;
 //******************************************************************************
 // Interrupción
 //******************************************************************************
@@ -81,28 +90,29 @@ void __interrupt() isr (void){
         INTCONbits.T0IF = 0;    // reiniciar bandera de tmr0
     }
     
-    if (INTCONbits.RBIF){             // Revisa si hay interrupción del puerto B
-        if (PORTBbits.RB0 == 0){     // Si hay revisa si se presionó RB6
+    if (INTCONbits.RBIF){             // Revisa si se ejecuta la interrupción
+        if (PORTBbits.RB0 == 0){     // si se presionó RB0
             while(PORTBbits.RB0 == 0);
-            if (modo < 1){
-                position = 0;
-                modo = modo + 1;}
+            if (modo < 2){
+                position = 0;       //se empieza position = 0
+                modo = modo + 1;}   //incrementa modo
             else {
                 modo = 0;}
         }
         if(PORTBbits.RB1 == 0){
-            while(PORTBbits.RB1 == 0);
+            while(PORTBbits.RB1 == 0);  // si se presionó RB0
             if (position < 3){
-                position = position +1;}
+                position = position +1;}    //incrementa la posicion
             else {
                 position = 0;}
         }
         if(PORTBbits.RB2 == 0){
             while(PORTBbits.RB2 == 0);
-                PORTCbits.RC5 = 1;
-                writeread = 1;}
+                PORTCbits.RC5 = 1;// enciende led de WR
+                writeread = 1;}     //se levanta la bandera para ejecutar la WR
         INTCONbits.RBIF = 0;  
-    } 
+    }
+    
 }
 //*******************************************************************
 // Código Principal
@@ -110,59 +120,70 @@ void __interrupt() isr (void){
 void main(void) {
     
     setup(); //llamo a los setups iniciales
-    setupINTOSC(3); 
-    setupADC();
-    setupPWM();
-    setupPWM2();
-    setupTMR0();
+    setupINTOSC(3); //oscilador de 500KHZ
+    initUART(); //comunicación serial
+    setupADC(); //setupo del adc
+    setupPWM(); //setup pwm1
+    setupPWM2();//setup del pwm2
+    setupTMR0();//setup tmr0
     
-    modo = 0;
-    position = 0;
+    modo = 0;   //variable para modo empieza en 0
+    position = 0;//posiciónd el address empieza en 0
+    valorpot1 = 0;
 
     while(1){
        //MODO DE CONTROL MANUAL Y ESCRITURA
-       if(modo == 0){
-            controlmotores(); 
-            verifpos();
+       if(modo == 0){   
+            controlmotores(); //control manual de motores
+            verifpos(); //funcion para verificar modo y posicion
+            adamodo();
             if (writeread == 1){
-                writeread = 0;
-                PORTCbits.RC5 = 0;
-                //int loc;
-                if (position == 0){
+                if (position == 0){ //position 0
                     loc = 0;}
-                else if (position == 1){
+                else if (position == 1){ //position 1
                     loc = 4;}
-                else if (position == 2){
+                else if (position == 2){ //position 2
                     loc = 8;}
-                else if (position == 3){
+                else if (position == 3){ //position 3
                     loc = 12;}
-                writeEEPROM(loc, CCPR1L);
-                writeEEPROM((loc + 1), CCPR2L);
+                writeEEPROM(loc, CCPR1L);           //se escriben los valores
+                writeEEPROM((loc + 1), CCPR2L);     //a la EEEPROM
                 writeEEPROM((loc + 2), pot);
                 writeEEPROM((loc + 3), pot1);
+                writeread = 0;
+                PORTCbits.RC5 = 0;
             }
             __delay_us(100);
         } 
-       else if (modo == 1){
+       //MODO DE LECTURA DE EEPROM
+       else if (modo == 1){ //modo de lectura
            verifpos(); //funcion para verificar modo y posicion
+           adamodo();
            if (writeread == 1){
-                writeread = 0;
-                PORTCbits.RC5 = 0;
-                //int loc;
-                if (position == 0){
+                if (position == 0){     //position 0
                     loc = 0;}
-                else if (position == 1){
+                else if (position == 1){ //position 1
                     loc = 4;}
-                else if (position == 2){
+                else if (position == 2){ //position 2
                     loc = 8;}
-                else if (position == 3){
+                else if (position == 3){ //position 3
                     loc = 12;}
-                CCPR1L = readEEPROM(loc);
+                CCPR1L = readEEPROM(loc);   //se leen los valores de la eeprom
                 CCPR2L = readEEPROM((loc+1));
                 pot = readEEPROM((loc+2));
-                pot1 = readEEPROM((loc+3));                
+                pot1 = readEEPROM((loc+3)); 
+                writeread = 0;
+                PORTCbits.RC5 = 0;
             }
-            }
+        }
+       else if (modo == 2){ //modo de adafruit control por internet
+            verifpos(); //funcion para verificar modo y posicion
+            adamodo();      //cambio de modo y posicion
+            //controladafruit(); //control de motores
+             if (writeread == 1){
+                writeread = 0;
+                PORTCbits.RC5 = 0;}       
+       }
         __delay_us(100);
     }
 }
@@ -175,7 +196,7 @@ void setup(void){
     PORTC = 0;
     PORTD = 0; // portd en 0
     TRISD = 0;
-    TRISC = 0;
+    TRISC = 0b10000000;
     PIE1bits.ADIE = 1;              // Se habilita la interrupción del ADC
     PIR1bits.ADIF = 0;              // clear a la bandera
     
@@ -271,7 +292,7 @@ void setupTMR0(void){
 void delay(unsigned int micro){
     while (micro > 0){
         __delay_us(40); 
-        micro--;
+        micro--;        //Se decremetna la variable
     }
 }
 //******************************************************************************
@@ -292,7 +313,6 @@ void mapeo(void){
 // Función de PWM
 //******************************************************************************
 void controlmotores(void){
-    
     //se lee el channel 0
     ADCON0bits.CHS = 0b0001; 
     __delay_us(100); 
@@ -305,7 +325,6 @@ void controlmotores(void){
     CCPR1L = valDCH;  //asigno el valor para el PWM
     __delay_ms(1);   
     //***********************************************
-    
     //leo el channel 1
     ADCON0bits.CHS = 0b0010; 
     __delay_us(100);
@@ -340,22 +359,18 @@ void controlmotores(void){
     pot1 = map(ADRESH, 0, 255, 1, 17);
     __delay_ms(1);
 }
-
 //******************************************************************************
 // Funciones de EEPROM
 //******************************************************************************
 //LECTURA
 uint8_t readEEPROM(uint8_t address){
     while (WR||RD);
-    
     EEADR = address;
     EECON1bits.EEPGD = 0;
     EECON1bits.RD = 1;   
     return EEDAT;
 }
-
 //ESCRITURA
-
 void writeEEPROM(uint8_t address, uint8_t data){
     uint8_t gieStatus;
     while (WR);
@@ -370,39 +385,128 @@ void writeEEPROM(uint8_t address, uint8_t data){
     EECON2 = 0xAA;
     EECON1bits.WR = 1;              //init W
     EECON1bits.WREN = 0;          //apagado de W de eeprom
-
     INTCONbits.GIE = gieStatus;     //se regresan las interrupciones
 }
-
 ////******************************************************************************
 // Funcion para verificar posicion
 //******************************************************************************
 void verifpos(void){
     //VERIFICACION POSITION
-    if (position == 0){
-        PORTDbits.RD2 = 0;
+    if (position == 0){             //se verifica la posición cero
+        PORTDbits.RD2 = 0;          
         PORTDbits.RD3 = 0;}
-    else if (position == 1){
+    else if (position == 1){    //se verifica la posición 1
         PORTDbits.RD2 = 1;
         PORTDbits.RD3 = 0;}
-    else if (position == 2){
+    else if (position == 2){        //se verifica la posición 2
         PORTDbits.RD2 = 0;
         PORTDbits.RD3 = 1;}
-    else if (position == 3){
+    else if (position == 3){        //se verifica la posición 3
         PORTDbits.RD2 = 1;
         PORTDbits.RD3 = 1;}
     //VERIFICACION MODO
-    if (modo == 0){
+    if (modo == 0){          //se verifica el modo 0 (manual y escritura)
         PORTDbits.RD0 = 1;
         PORTDbits.RD1 = 0;
         PORTCbits.RC4 = 0;}
-    else if (modo == 1){
+    else if (modo == 1){    //se verifica el modo 1 (lectura de eeprom)
         PORTDbits.RD0 = 0;
         PORTDbits.RD1 = 1;
-        PORTCbits.RC4 = 0;}
+        PORTCbits.RC4 = 0;} //se verifica el modo 2 (control mediante adafruit)
     else if (modo == 2){
         PORTDbits.RD0 = 0;
         PORTDbits.RD1 = 0;
-        PORTCbits.RC4 = 1;}
-        
+        PORTCbits.RC4 = 1;}     
+}
+//******************************************************************************
+// Función para configurar UART
+//******************************************************************************
+void initUART(void){
+    // Paso 1: configurar velocidad baud rate
+    SPBRG = 12;
+    // Paso 2:
+    TXSTAbits.SYNC = 0;         // Trabajaremos de forma asincrona
+    RCSTAbits.SPEN = 1;         // habilitamos módulo UART
+    // Paso 3:
+    TXSTAbits.BRGH = 1;     //baud rate high
+    BAUDCTLbits.BRG16 = 1;      //16 bit baud rate generator
+    // Paso 4:
+    TXSTAbits.TXEN = 1;         // Habilitamos la transmision
+    PIR1bits.TXIF = 0;
+    RCSTAbits.CREN = 1;         // Habilitamos la recepcion   
+}
+//******************************************************************************
+//FUNCIÓN DE CARACTER
+//******************************************************************************
+void cadena(char *cursor){
+    while (*cursor != '\0'){
+        while (PIR1bits.TXIF == 0); //espera que se pasen todos los caracteres
+            TXREG = *cursor;
+            cursor++;   //el cursor va apuntando a diferente caracter       
+    } 
+}
+void adamodo (void){
+            if(PIR1bits.RCIF == 1){
+                if(RCREG == 0b00110001){ 
+                    if (modo < 2){
+                        position = 0;       //se empieza position = 0
+                        modo = modo + 1;  //incrementa modo
+                        PIR1bits.RCIF = 0;}
+                    else {
+                        modo = 0;}
+                    }
+                if(RCREG == 0b00110010){ 
+                    if (position < 3){
+                        position = position +1;    //incrementa la posicion
+                        PIR1bits.RCIF = 0;}
+                    else {
+                        position = 0;}
+                    }
+                    if(RCREG == 0b00110011){ 
+                        writeread = 1; //se muestran los valores en el portd
+                        PIR1bits.RCIF = 0;
+                    }
+                if(RCREG == '4'){ 
+                    if (pot1 < 17){
+                        pot1 = pot1 + 1;
+                        //__delay_ms(1);  //incrementa modo
+                        PIR1bits.RCIF = 0;}
+                    }
+                if(RCREG == '5'){ 
+                    if (pot1 > 1){
+                        pot1 = pot1 - 1;
+                        //__delay_ms(1);  //decrementa modo
+                        PIR1bits.RCIF = 0;}
+                    }
+                if(RCREG == '6'){ 
+                    if (pot < 17){
+                        pot = pot + 1;
+                        //__delay_ms(1);  //incrementa pot
+                        PIR1bits.RCIF = 0;}
+                    }
+                if(RCREG == '7'){ 
+                    if (pot > 1){
+                        pot = pot - 1;
+                        //__delay_ms(1);  //decrementa pot
+                        PIR1bits.RCIF = 0;}
+                    }
+                if(RCREG == '8'){ 
+                    if (CCPR1L < 256){
+                        CCPR1L = CCPR1L + 1;
+                        //__delay_ms(1);  //incrementa el CCPR1L
+                        PIR1bits.RCIF = 0;}
+                    }
+                if(RCREG == '9'){ 
+                    if (CCPR1L > 1){
+                        CCPR1L = CCPR1L - 1;
+                        //__delay_ms(1);  //decrementa el ccpr1l
+                        PIR1bits.RCIF = 0;}
+                    }
+                if(RCREG == '0'){ 
+                    if (CCPR2L < 256){
+                        CCPR2L = CCPR2L + 1; //incrementa el ccpr2l
+                        PIR1bits.RCIF = 0;}
+                    }
+            }
+         
 }

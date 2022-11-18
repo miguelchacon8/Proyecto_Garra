@@ -7,7 +7,7 @@
 # 1 "C:/Program Files/Microchip/MPLABX/v6.00/packs/Microchip/PIC16Fxxx_DFP/1.3.42/xc8\\pic\\include\\language_support.h" 1 3
 # 2 "<built-in>" 2
 # 1 "main.c" 2
-# 12 "main.c"
+# 13 "main.c"
 #pragma config FOSC = INTRC_NOCLKOUT
 #pragma config WDTE = OFF
 #pragma config PWRTE = OFF
@@ -2644,7 +2644,7 @@ extern __bank0 unsigned char __resetbits;
 extern __bank0 __bit __powerdown;
 extern __bank0 __bit __timeout;
 # 29 "C:/Program Files/Microchip/MPLABX/v6.00/packs/Microchip/PIC16Fxxx_DFP/1.3.42/xc8\\pic\\include\\xc.h" 2 3
-# 30 "main.c" 2
+# 31 "main.c" 2
 
 # 1 "./oscilador.h" 1
 # 14 "./oscilador.h"
@@ -2655,12 +2655,141 @@ extern __bank0 __bit __timeout;
 
 
 void setupINTOSC(uint8_t IRCF);
-# 31 "main.c" 2
+# 32 "main.c" 2
+
+# 1 "C:\\Program Files\\Microchip\\xc8\\v2.40\\pic\\include\\c90\\stdlib.h" 1 3
+
+
+
+
+# 1 "C:/Program Files/Microchip/MPLABX/v6.00/packs/Microchip/PIC16Fxxx_DFP/1.3.42/xc8\\pic\\include\\__size_t.h" 1 3
+
+
+
+typedef unsigned size_t;
+# 5 "C:\\Program Files\\Microchip\\xc8\\v2.40\\pic\\include\\c90\\stdlib.h" 2 3
+
+# 1 "C:/Program Files/Microchip/MPLABX/v6.00/packs/Microchip/PIC16Fxxx_DFP/1.3.42/xc8\\pic\\include\\__null.h" 1 3
+# 6 "C:\\Program Files\\Microchip\\xc8\\v2.40\\pic\\include\\c90\\stdlib.h" 2 3
+
+typedef unsigned short wchar_t;
+
+
+
+
+
+
+
+typedef struct {
+ int rem;
+ int quot;
+} div_t;
+typedef struct {
+ unsigned rem;
+ unsigned quot;
+} udiv_t;
+typedef struct {
+ long quot;
+ long rem;
+} ldiv_t;
+typedef struct {
+ unsigned long quot;
+ unsigned long rem;
+} uldiv_t;
+# 65 "C:\\Program Files\\Microchip\\xc8\\v2.40\\pic\\include\\c90\\stdlib.h" 3
+extern double atof(const char *);
+extern double strtod(const char *, const char **);
+extern int atoi(const char *);
+extern unsigned xtoi(const char *);
+extern long atol(const char *);
+
+
+
+extern long strtol(const char *, char **, int);
+
+extern int rand(void);
+extern void srand(unsigned int);
+extern void * calloc(size_t, size_t);
+extern div_t div(int numer, int denom);
+extern udiv_t udiv(unsigned numer, unsigned denom);
+extern ldiv_t ldiv(long numer, long denom);
+extern uldiv_t uldiv(unsigned long numer,unsigned long denom);
+
+
+
+extern unsigned long _lrotl(unsigned long value, unsigned int shift);
+extern unsigned long _lrotr(unsigned long value, unsigned int shift);
+extern unsigned int _rotl(unsigned int value, unsigned int shift);
+extern unsigned int _rotr(unsigned int value, unsigned int shift);
+
+
+
+
+extern void * malloc(size_t);
+extern void free(void *);
+extern void * realloc(void *, size_t);
+# 104 "C:\\Program Files\\Microchip\\xc8\\v2.40\\pic\\include\\c90\\stdlib.h" 3
+extern int atexit(void (*)(void));
+extern char * getenv(const char *);
+extern char ** environ;
+extern int system(char *);
+extern void qsort(void *, size_t, size_t, int (*)(const void *, const void *));
+extern void * bsearch(const void *, void *, size_t, size_t, int(*)(const void *, const void *));
+extern int abs(int);
+extern long labs(long);
+
+extern char * itoa(char * buf, int val, int base);
+extern char * utoa(char * buf, unsigned val, int base);
+
+
+
+
+extern char * ltoa(char * buf, long val, int base);
+extern char * ultoa(char * buf, unsigned long val, int base);
+
+extern char * ftoa(float f, int * status);
+# 33 "main.c" 2
+
+# 1 "C:\\Program Files\\Microchip\\xc8\\v2.40\\pic\\include\\c90\\string.h" 1 3
+# 14 "C:\\Program Files\\Microchip\\xc8\\v2.40\\pic\\include\\c90\\string.h" 3
+extern void * memcpy(void *, const void *, size_t);
+extern void * memmove(void *, const void *, size_t);
+extern void * memset(void *, int, size_t);
+# 36 "C:\\Program Files\\Microchip\\xc8\\v2.40\\pic\\include\\c90\\string.h" 3
+extern char * strcat(char *, const char *);
+extern char * strcpy(char *, const char *);
+extern char * strncat(char *, const char *, size_t);
+extern char * strncpy(char *, const char *, size_t);
+extern char * strdup(const char *);
+extern char * strtok(char *, const char *);
+
+
+extern int memcmp(const void *, const void *, size_t);
+extern int strcmp(const char *, const char *);
+extern int stricmp(const char *, const char *);
+extern int strncmp(const char *, const char *, size_t);
+extern int strnicmp(const char *, const char *, size_t);
+extern void * memchr(const void *, int, size_t);
+extern size_t strcspn(const char *, const char *);
+extern char * strpbrk(const char *, const char *);
+extern size_t strspn(const char *, const char *);
+extern char * strstr(const char *, const char *);
+extern char * stristr(const char *, const char *);
+extern char * strerror(int);
+extern size_t strlen(const char *);
+extern char * strchr(const char *, int);
+extern char * strichr(const char *, int);
+extern char * strrchr(const char *, int);
+extern char * strrichr(const char *, int);
+# 34 "main.c" 2
+
 
 
 
 
 void setup(void);
+void initUART(void);
+void cadena(char *cursor);
 void setupTMR0(void);
 void setupADC(void);
 void setupPWM(void);
@@ -2675,7 +2804,8 @@ void controlmotores(void);
 uint8_t readEEPROM(uint8_t address);
 void writeEEPROM(uint8_t address, uint8_t data);
 void verifpos(void);
-
+void adamodo(void);
+void controladafruit (void);
 
 unsigned int modo;
 unsigned int ADC_RES;
@@ -2685,6 +2815,7 @@ unsigned int valDCH;
 
 unsigned int pot;
 unsigned int pot1;
+uint8_t valorpot1;
 unsigned int micro;
 unsigned int modo;
 unsigned int position;
@@ -2692,7 +2823,8 @@ int writeread;
 int loc;
 
 uint8_t address = 0, cont = 0, cont_sleep = 0, data;
-
+char buffer[sizeof(unsigned int)*8 +1];
+unsigned int i = 0;
 
 
 
@@ -2712,7 +2844,7 @@ void __attribute__((picinterrupt(("")))) isr (void){
     if (INTCONbits.RBIF){
         if (PORTBbits.RB0 == 0){
             while(PORTBbits.RB0 == 0);
-            if (modo < 1){
+            if (modo < 2){
                 position = 0;
                 modo = modo + 1;}
             else {
@@ -2731,6 +2863,7 @@ void __attribute__((picinterrupt(("")))) isr (void){
                 writeread = 1;}
         INTCONbits.RBIF = 0;
     }
+
 }
 
 
@@ -2739,6 +2872,7 @@ void main(void) {
 
     setup();
     setupINTOSC(3);
+    initUART();
     setupADC();
     setupPWM();
     setupPWM2();
@@ -2746,16 +2880,15 @@ void main(void) {
 
     modo = 0;
     position = 0;
+    valorpot1 = 0;
 
     while(1){
 
        if(modo == 0){
             controlmotores();
             verifpos();
+            adamodo();
             if (writeread == 1){
-                writeread = 0;
-                PORTCbits.RC5 = 0;
-
                 if (position == 0){
                     loc = 0;}
                 else if (position == 1){
@@ -2768,15 +2901,16 @@ void main(void) {
                 writeEEPROM((loc + 1), CCPR2L);
                 writeEEPROM((loc + 2), pot);
                 writeEEPROM((loc + 3), pot1);
+                writeread = 0;
+                PORTCbits.RC5 = 0;
             }
             _delay((unsigned long)((100)*(500000/4000000.0)));
         }
+
        else if (modo == 1){
            verifpos();
+           adamodo();
            if (writeread == 1){
-                writeread = 0;
-                PORTCbits.RC5 = 0;
-
                 if (position == 0){
                     loc = 0;}
                 else if (position == 1){
@@ -2789,8 +2923,18 @@ void main(void) {
                 CCPR2L = readEEPROM((loc+1));
                 pot = readEEPROM((loc+2));
                 pot1 = readEEPROM((loc+3));
+                writeread = 0;
+                PORTCbits.RC5 = 0;
             }
-            }
+        }
+       else if (modo == 2){
+            verifpos();
+            adamodo();
+
+             if (writeread == 1){
+                writeread = 0;
+                PORTCbits.RC5 = 0;}
+       }
         _delay((unsigned long)((100)*(500000/4000000.0)));
     }
 }
@@ -2803,7 +2947,7 @@ void setup(void){
     PORTC = 0;
     PORTD = 0;
     TRISD = 0;
-    TRISC = 0;
+    TRISC = 0b10000000;
     PIE1bits.ADIE = 1;
     PIR1bits.ADIF = 0;
 
@@ -2921,7 +3065,6 @@ void mapeo(void){
 
 void controlmotores(void){
 
-
     ADCON0bits.CHS = 0b0001;
     _delay((unsigned long)((100)*(500000/4000000.0)));
     ADCON0bits.GO = 1;
@@ -2932,7 +3075,6 @@ void controlmotores(void){
     CCP1CONbits.DC1B = valDCL;
     CCPR1L = valDCH;
     _delay((unsigned long)((1)*(500000/4000.0)));
-
 
 
     ADCON0bits.CHS = 0b0010;
@@ -2972,17 +3114,13 @@ void controlmotores(void){
 
 
 
-
 uint8_t readEEPROM(uint8_t address){
     while (WR||RD);
-
     EEADR = address;
     EECON1bits.EEPGD = 0;
     EECON1bits.RD = 1;
     return EEDAT;
 }
-
-
 
 void writeEEPROM(uint8_t address, uint8_t data){
     uint8_t gieStatus;
@@ -2998,10 +3136,8 @@ void writeEEPROM(uint8_t address, uint8_t data){
     EECON2 = 0xAA;
     EECON1bits.WR = 1;
     EECON1bits.WREN = 0;
-
     INTCONbits.GIE = gieStatus;
 }
-
 
 
 
@@ -3032,5 +3168,96 @@ void verifpos(void){
         PORTDbits.RD0 = 0;
         PORTDbits.RD1 = 0;
         PORTCbits.RC4 = 1;}
+}
+
+
+
+void initUART(void){
+
+    SPBRG = 12;
+
+    TXSTAbits.SYNC = 0;
+    RCSTAbits.SPEN = 1;
+
+    TXSTAbits.BRGH = 1;
+    BAUDCTLbits.BRG16 = 1;
+
+    TXSTAbits.TXEN = 1;
+    PIR1bits.TXIF = 0;
+    RCSTAbits.CREN = 1;
+}
+
+
+
+void cadena(char *cursor){
+    while (*cursor != '\0'){
+        while (PIR1bits.TXIF == 0);
+            TXREG = *cursor;
+            cursor++;
+    }
+}
+void adamodo (void){
+            if(PIR1bits.RCIF == 1){
+                if(RCREG == 0b00110001){
+                    if (modo < 2){
+                        position = 0;
+                        modo = modo + 1;
+                        PIR1bits.RCIF = 0;}
+                    else {
+                        modo = 0;}
+                    }
+                if(RCREG == 0b00110010){
+                    if (position < 3){
+                        position = position +1;
+                        PIR1bits.RCIF = 0;}
+                    else {
+                        position = 0;}
+                    }
+                    if(RCREG == 0b00110011){
+                        writeread = 1;
+                        PIR1bits.RCIF = 0;
+                    }
+                if(RCREG == '4'){
+                    if (pot1 < 17){
+                        pot1 = pot1 + 1;
+
+                        PIR1bits.RCIF = 0;}
+                    }
+                if(RCREG == '5'){
+                    if (pot1 > 1){
+                        pot1 = pot1 - 1;
+
+                        PIR1bits.RCIF = 0;}
+                    }
+                if(RCREG == '6'){
+                    if (pot < 17){
+                        pot = pot + 1;
+
+                        PIR1bits.RCIF = 0;}
+                    }
+                if(RCREG == '7'){
+                    if (pot > 1){
+                        pot = pot - 1;
+
+                        PIR1bits.RCIF = 0;}
+                    }
+                if(RCREG == '8'){
+                    if (CCPR1L < 256){
+                        CCPR1L = CCPR1L + 1;
+
+                        PIR1bits.RCIF = 0;}
+                    }
+                if(RCREG == '9'){
+                    if (CCPR1L > 1){
+                        CCPR1L = CCPR1L - 1;
+
+                        PIR1bits.RCIF = 0;}
+                    }
+                if(RCREG == '0'){
+                    if (CCPR2L < 256){
+                        CCPR2L = CCPR2L + 1;
+                        PIR1bits.RCIF = 0;}
+                    }
+            }
 
 }
